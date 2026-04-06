@@ -95,7 +95,7 @@ export async function postTask(
 export async function createTodayTasks(todoApi: TodoApi, settings: MsTodoSyncSettings, editor?: Editor) {
 	new Notice('Fetching Microsoft Todo...', 3000);
 	const now = window.moment();
-	const taskLists = await todoApi.getLists();
+	const taskLists = await todoApi.getLists("status ne 'completed'");
 	if (!taskLists || taskLists.length == 0) {
 		new Notice('Task list is empty');
 		return;
