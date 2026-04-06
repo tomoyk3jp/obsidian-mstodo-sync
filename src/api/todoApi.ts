@@ -46,28 +46,36 @@ export class TodoApi {
 		});
 	}
 
-	// Task operation
+	// Task operation - fetches ALL tasks with full pagination support
 	async getListTasks(listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
 		if (!listId) return;
 		const endpoint = `/me/todo/lists/${listId}/tasks`;
 		const allTasks: TodoTask[] = [];
 		try {
-			let request = this.client.api(endpoint).top(100);
+			let request = this.client.api(endpoint);
 			if (searchText) {
 				request = request.filter(searchText);
 			}
 			let res = await request.get();
 			if (!res) return;
 			allTasks.push(...(res.value as TodoTask[]));
-			// Handle pagination
+			console.log(`[MsTodoSync] Fetched ${res.value.length} tasks (page 1), nextLink: ${!!res['@odata.nextLink']}`);
+			// Follow pagination via @odata.nextLink
+			let page = 2;
 			while (res['@odata.nextLink']) {
 				res = await this.client.api(res['@odata.nextLink']).get();
 				if (res?.value) {
 					allTasks.push(...(res.value as TodoTask[]));
+					console.log(`[MsTodoSync] Fetched ${res.value.length} tasks (page ${page}), nextLink: ${!!res['@odata.nextLink']}`);
 				}
+				page++;
+				// Safety limit to prevent infinite loops
+				if (page > 50) break;
 			}
+			console.log(`[MsTodoSync] Total tasks fetched: ${allTasks.length}`);
 		} catch (err) {
-			new Notice('Failed to fetch tasks. Please check if the sync list still exists.');
+			console.error('[MsTodoSync] Error fetching tasks:', err);
+			new Notice(`Failed to fetch tasks: ${err}`);
 			return;
 		}
 		return allTasks;
