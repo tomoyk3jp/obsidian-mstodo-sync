@@ -27,14 +27,14 @@ export async function postTask(
 	replace?: boolean,
 ) {
 	if (!editor.somethingSelected()) {
-		new Notice('好像没有选中什么');
+		new Notice('No text selected');
 		return;
 	}
 	if (!listId) {
-		new Notice('请先设置同步列表');
+		new Notice('Please set the sync list first');
 		return;
 	}
-	new Notice('创建待办中...', 3000);
+	new Notice('Creating tasks...', 3000);
 	const body = `${t('displayOptions_CreatedInFile')} [[${fileName}]]`;
 	const formatted = editor
 		.getSelection()
@@ -71,7 +71,7 @@ export async function postTask(
 			}
 		}),
 	).then((res) => {
-		new Notice('创建待办成功√');
+		new Notice('Tasks created successfully');
 		if (replace) {
 			editor.replaceSelection(
 				res
@@ -93,12 +93,11 @@ export async function postTask(
 }
 
 export async function createTodayTasks(todoApi: TodoApi, settings: MsTodoSyncSettings, editor?: Editor) {
-	new Notice('获取微软待办中', 3000);
+	new Notice('Fetching Microsoft Todo...', 3000);
 	const now = window.moment();
-	const pattern = `status ne 'completed' or completedDateTime/dateTime ge '${now.format('yyyy-MM-DD')}'`;
-	const taskLists = await todoApi.getLists(pattern);
+	const taskLists = await todoApi.getLists();
 	if (!taskLists || taskLists.length == 0) {
-		new Notice('任务列表为空');
+		new Notice('Task list is empty');
 		return;
 	}
 	const segments = taskLists
@@ -125,7 +124,7 @@ ${lines?.join('\n')}
 		.filter((s) => s != undefined)
 		.join('\n\n');
 
-	new Notice('待办列表已获取');
+	new Notice('Tasks fetched successfully');
 	if (editor) editor.replaceSelection(segments);
 	else return segments;
 }

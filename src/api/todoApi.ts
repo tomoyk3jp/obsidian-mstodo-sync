@@ -15,10 +15,11 @@ export class TodoApi {
 		const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
 		return await Promise.all(
 			todoLists.map(async (taskList) => {
+				// If no search pattern, fetch all tasks (no filter)
 				const containedTasks = await this.getListTasks(taskList.id, searchPattern);
 				return {
 					...taskList,
-					tasks: containedTasks,
+					tasks: containedTasks ?? [],
 				};
 			}),
 		);
@@ -49,17 +50,27 @@ export class TodoApi {
 	async getListTasks(listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
 		if (!listId) return;
 		const endpoint = `/me/todo/lists/${listId}/tasks`;
-		if (!searchText) return;
-		const res = await this.client
-			.api(endpoint)
-			.filter(searchText)
-			.get()
-			.catch((err) => {
-				new Notice('获取失败，请检查同步列表是否已删除');
-				return;
-			});
-		if (!res) return;
-		return res.value as TodoTask[];
+		const allTasks: TodoTask[] = [];
+		try {
+			let request = this.client.api(endpoint).top(100);
+			if (searchText) {
+				request = request.filter(searchText);
+			}
+			let res = await request.get();
+			if (!res) return;
+			allTasks.push(...(res.value as TodoTask[]));
+			// Handle pagination
+			while (res['@odata.nextLink']) {
+				res = await this.client.api(res['@odata.nextLink']).get();
+				if (res?.value) {
+					allTasks.push(...(res.value as TodoTask[]));
+				}
+			}
+		} catch (err) {
+			new Notice('Failed to fetch tasks. Please check if the sync list still exists.');
+			return;
+		}
+		return allTasks;
 	}
 	async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
 		const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
